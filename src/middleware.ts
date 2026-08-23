@@ -1,0 +1,42 @@
+import { NextRequest, NextResponse } from "next/server";
+import { jwtVerify } from "jose";
+
+const JWT_SECRET = process.env.JWT_SECRET || "clerx_ai_super_secret_jwt_key_2026_x984920491823901823908";
+const key = new TextEncoder().encode(JWT_SECRET);
+const AUTH_COOKIE_NAME = "clerx_auth_token";
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+
+  let isAuthenticated = false;
+
+  if (token) {
+    try {
+      await jwtVerify(token, key);
+      isAuthenticated = true;
+    } catch (err) {
+      isAuthenticated = false;
+    }
+  }
+
+  // Protected dashboard routes
+  if (pathname.startsWith("/dashboard")) {
+    if (!isAuthenticated) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  // Auth routes (redirect to root chat if already logged in)
+  if ((pathname === "/login" || pathname === "/signup") && isAuthenticated) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/dashboard/:path*", "/login", "/signup"],
+};

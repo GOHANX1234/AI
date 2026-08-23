@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #212121;
+  --sidebar: #171717;
+  --surface: #2f2f2f;
+  --foreground: #ececec;
+  --muted: #b4b4b4;
+  --border: rgba(255, 255, 255, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+  height: 100%;
+}
+
+/* ChatGPT style clean scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* Crisp Markdown in AI chat */
+.prose-chat {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: #ececec;
+}
+
+.prose-chat p {
+  margin-bottom: 1rem;
+}
+
+.prose-chat p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-chat pre {
+  background: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.prose-chat code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.prose-chat pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.875rem;
+}
+
+.prose-chat ul, .prose-chat ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.prose-chat ul {
+  list-style-type: disc;
+}
+
+.prose-chat ol {
+  list-style-type: decimal;
+}
+
+.prose-chat li {
+  margin-bottom: 0.35rem;
+}
+
+.prose-chat h1, .prose-chat h2, .prose-chat h3, .prose-chat h4 {
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.prose-chat h1 {
+  font-size: 1.4rem;
+}
+
+.prose-chat h2 {
+  font-size: 1.25rem;
+}
+
+.prose-chat h3 {
+  font-size: 1.1rem;
+}
+
+.prose-chat blockquote {
+  border-left: 3px solid #52525b;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: #a1a1aa;
+}
+
+.prose-chat a {
+  color: #60a5fa;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prose-chat a:hover {
+  color: #93c5fd;
+}
+
+.prose-chat table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.prose-chat th, .prose-chat td {
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+}
+
+.prose-chat th {
+  background: #171717;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.prose-chat tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.prose-chat hr {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 1.5rem 0;
+}
