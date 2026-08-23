@@ -38,10 +38,7 @@ export async function createChatCompletion(
   latencyMs: number;
   model: string;
 }> {
-  const apiKey =
-    options.apiKey ||
-    process.env.OPENROUTER_API_KEY ||
-    "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";
+  const apiKey = options.apiKey || process.env.OPENROUTER_API_KEY || "";
   const requestedModel = options.model || DEFAULT_MODEL;
   const temperature = options.temperature ?? 0.7;
   const maxTokens = options.maxTokens ?? 2048;
@@ -128,13 +125,14 @@ export async function getOpenRouterStreamResponse(
     apiKey?: string;
   } = {}
 ): Promise<Response> {
-  const apiKey =
-    options.apiKey ||
-    process.env.OPENROUTER_API_KEY ||
-    "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";
+  const apiKey = options.apiKey || process.env.OPENROUTER_API_KEY || "";
   const requestedModel = options.model || DEFAULT_MODEL;
   const temperature = options.temperature ?? 0.7;
   const maxTokens = options.maxTokens ?? 2048;
+
+  if (!apiKey) {
+    throw new Error("AI service is currently unavailable. Please verify API configuration.");
+  }
 
   const modelsToTry = [
     requestedModel,

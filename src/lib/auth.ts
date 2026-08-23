@@ -5,7 +5,10 @@ import { NextRequest } from "next/server";
 import { connectToDatabase } from "./mongodb";
 import User, { IUser } from "./models/User";
 
-const JWT_SECRET = process.env.JWT_SECRET || "clerx_ai_super_secret_jwt_key_2026_x984920491823901823908";
+const JWT_SECRET = process.env.JWT_SECRET || "";
+if (!JWT_SECRET && process.env.NODE_ENV === "production") {
+  console.warn("JWT_SECRET is not set. Please set JWT_SECRET in your environment.");
+}
 const key = new TextEncoder().encode(JWT_SECRET);
 
 export const AUTH_COOKIE_NAME = "clerx_auth_token";

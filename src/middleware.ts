@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const JWT_SECRET = process.env.JWT_SECRET || "clerx_ai_super_secret_jwt_key_2026_x984920491823901823908";
+const JWT_SECRET = process.env.JWT_SECRET || "";
 const key = new TextEncoder().encode(JWT_SECRET);
 const AUTH_COOKIE_NAME = "clerx_auth_token";
 
