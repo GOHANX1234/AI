@@ -20,13 +20,9 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Protected dashboard routes
+  // Redirect any legacy dashboard routes to root chat
   if (pathname.startsWith("/dashboard")) {
-    if (!isAuthenticated) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   // Auth routes (redirect to root chat if already logged in)
