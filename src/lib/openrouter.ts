@@ -1,9 +1,15 @@
+export type ChatContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: string | ChatContentPart[];
 }
 
-export const DEFAULT_MODEL = process.env.DEFAULT_AI_MODEL || "z-ai/glm-5.2:free";
+export const NEMOTRON_OMNI_MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free";
+export const TEXT_MODEL = "z-ai/glm-5.2:free";
+export const DEFAULT_MODEL = process.env.DEFAULT_AI_MODEL || TEXT_MODEL;
 
 export const DEFAULT_SYSTEM_PROMPT =
   "You are ClerX AI, a helpful, intelligent, versatile, and precise AI assistant. Provide thoughtful, clear, accurate, and actionable answers to any questions or tasks. Never mention underlying model or provider names; you are solely ClerX AI.";
@@ -14,6 +20,9 @@ export interface OpenRouterResponse {
     message: {
       role: string;
       content: string;
+      reasoning?: string;
+      reasoning_content?: string;
+      thought?: string;
     };
     finish_reason: string;
   }>;
@@ -22,6 +31,53 @@ export interface OpenRouterResponse {
     completion_tokens: number;
     total_tokens: number;
   };
+}
+
+export function parseThinkingAndContent(
+  rawContent: string,
+  reasoningField?: string
+): { thought: string; content: string } {
+  let thought = (reasoningField || "").trim();
+  let content = rawContent || "";
+
+  // Check if rawContent contains <think>...</think>
+  const thinkRegex = /<think>([\s\S]*?)<\/think>/i;
+  const match = content.match(thinkRegex);
+  if (match) {
+    if (!thought) {
+      thought = match[1].trim();
+    }
+    content = content.replace(thinkRegex, "").trim();
+  } else {
+    // Unclosed <think>...
+    const unclosedMatch = content.match(/<think>([\s\S]*)$/i);
+    if (unclosedMatch) {
+      if (!thought) {
+        thought = unclosedMatch[1].trim();
+      }
+      content = "";
+    }
+  }
+
+  // Also check for [THOUGHT]...[/THOUGHT]
+  const thoughtTagRegex = /\[THOUGHT\]([\s\S]*?)\[\/THOUGHT\]/i;
+  const thoughtMatch = content.match(thoughtTagRegex);
+  if (thoughtMatch) {
+    if (!thought) {
+      thought = thoughtMatch[1].trim();
+    }
+    content = content.replace(thoughtTagRegex, "").trim();
+  }
+
+  return { thought, content };
+}
+
+function hasMultimodalContent(messages: ChatMessage[]): boolean {
+  return messages.some(
+    (m) =>
+      Array.isArray(m.content) &&
+      m.content.some((p) => p.type === "image_url")
+  );
 }
 
 export async function createChatCompletion(
@@ -34,12 +90,17 @@ export async function createChatCompletion(
   } = {}
 ): Promise<{
   content: string;
+  thought: string;
+  thoughtDurationSec: number;
   tokens: number;
   latencyMs: number;
   model: string;
 }> {
   const apiKey = options.apiKey || process.env.OPENROUTER_API_KEY || "";
-  const requestedModel = options.model || DEFAULT_MODEL;
+  const isMultimodal = hasMultimodalContent(messages);
+  const requestedModel = isMultimodal
+    ? NEMOTRON_OMNI_MODEL
+    : options.model || TEXT_MODEL;
   const temperature = options.temperature ?? 0.7;
   const maxTokens = options.maxTokens ?? 2048;
 
@@ -47,12 +108,20 @@ export async function createChatCompletion(
     throw new Error("AI service is currently unavailable. Please verify API configuration.");
   }
 
-  const modelsToTry = [
-    requestedModel,
-    "nvidia/nemotron-3.5-lightning:free",
-    "nvidia/nemotron-3-nano-30b-a3b:free",
-    "google/gemma-4-31b-it:free",
-  ];
+  const modelsToTry = isMultimodal
+    ? [
+        NEMOTRON_OMNI_MODEL,
+        "nvidia/nemotron-nano-12b-v2-vl:free",
+        "google/gemini-2.5-flash-image",
+      ]
+    : [
+        requestedModel,
+        TEXT_MODEL,
+        "nvidia/nemotron-3-super-120b-a12b:free",
+        "liquid/lfm-2.5-2.6b:free",
+        "poolside/laguna-s-2.1:free",
+        "nvidia/nemotron-3-nano-30b-a3b:free",
+      ];
 
   const uniqueModels = Array.from(new Set(modelsToTry));
   let lastError: Error | null = null;
@@ -91,20 +160,28 @@ export async function createChatCompletion(
       const data: OpenRouterResponse = await response.json();
       const choice = data.choices?.[0];
       const rawContent = choice?.message?.content || "";
-      const content = rawContent.trim();
+      const reasoningField =
+        choice?.message?.reasoning ||
+        choice?.message?.reasoning_content ||
+        choice?.message?.thought;
+      
+      const { thought, content } = parseThinkingAndContent(rawContent, reasoningField);
       const latencyMs = Date.now() - startTime;
+      const thoughtDurationSec = Math.max(1, Math.round(latencyMs / 1000));
       const tokens =
         data.usage?.total_tokens ||
-        Math.max(1, Math.ceil((content.length + JSON.stringify(messages).length) / 4));
+        Math.max(1, Math.ceil(((content + thought).length + JSON.stringify(messages).length) / 4));
 
       return {
-        content: content || "I am ClerX AI, ready to assist you.",
+        content: content || (thought ? "" : "I am ClerX AI, ready to assist you."),
+        thought,
+        thoughtDurationSec,
         tokens,
         latencyMs,
         model: "ClerX AI",
       };
     } catch (err: any) {
-      console.error(`AI completion attempt failed:`, err.message);
+      console.error(`AI completion attempt failed for ${currentModel}:`, err.message);
       lastError = err;
     }
   }
@@ -126,7 +203,10 @@ export async function getOpenRouterStreamResponse(
   } = {}
 ): Promise<Response> {
   const apiKey = options.apiKey || process.env.OPENROUTER_API_KEY || "";
-  const requestedModel = options.model || DEFAULT_MODEL;
+  const isMultimodal = hasMultimodalContent(messages);
+  const requestedModel = isMultimodal
+    ? NEMOTRON_OMNI_MODEL
+    : options.model || TEXT_MODEL;
   const temperature = options.temperature ?? 0.7;
   const maxTokens = options.maxTokens ?? 2048;
 
@@ -134,12 +214,20 @@ export async function getOpenRouterStreamResponse(
     throw new Error("AI service is currently unavailable. Please verify API configuration.");
   }
 
-  const modelsToTry = [
-    requestedModel,
-    "nvidia/nemotron-3.5-lightning:free",
-    "nvidia/nemotron-3-nano-30b-a3b:free",
-    "google/gemma-4-31b-it:free",
-  ];
+  const modelsToTry = isMultimodal
+    ? [
+        NEMOTRON_OMNI_MODEL,
+        "nvidia/nemotron-nano-12b-v2-vl:free",
+        "google/gemini-2.5-flash-image",
+      ]
+    : [
+        requestedModel,
+        TEXT_MODEL,
+        "nvidia/nemotron-3-super-120b-a12b:free",
+        "liquid/lfm-2.5-2.6b:free",
+        "poolside/laguna-s-2.1:free",
+        "nvidia/nemotron-3-nano-30b-a3b:free",
+      ];
 
   for (const currentModel of Array.from(new Set(modelsToTry))) {
     try {

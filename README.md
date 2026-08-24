@@ -3,14 +3,14 @@
 # ⚡ ClerX AI
 ### Modern Full-Stack AI Chat Workspace & Neural Assistant
 
-[![Next.js](https://img.shields.io/badge/Next.js-15.1-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 [![MongoDB Atlas](https://img.shields.io/badge/MongoDB_Atlas-8.x-47A248?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/atlas)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-AI_Gateway-6366F1?style=for-the-badge)](https://openrouter.ai/)
 
-**A high-performance, ChatGPT-style AI chat studio powered by OpenRouter (GLM-5.2, Nemotron, Gemma), Next.js 15 App Router, React 19, and MongoDB Atlas.**
+**A high-performance, ChatGPT-style AI chat studio powered by OpenRouter (GLM-5.2, Nemotron, Gemma), Next.js 16 App Router (Turbopack), React 19, and MongoDB Atlas.**
 
 [Getting Started](#-getting-started) • [Features](#-key-features) • [Architecture](#-project-architecture) • [API Reference](#-api-endpoints)
 

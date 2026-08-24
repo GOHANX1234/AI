@@ -1,11 +1,22 @@
 import mongoose, { Schema, Model } from "mongoose";
 
+export interface IMessageAttachment {
+  type: string;
+  url: string;
+  name?: string;
+  size?: number;
+  mimeType?: string;
+}
+
 export interface IMessage {
   _id: mongoose.Types.ObjectId;
   conversationId: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   role: "user" | "assistant" | "system";
   content: string;
+  attachments?: IMessageAttachment[];
+  thought?: string;
+  thoughtDurationSec?: number;
   model?: string;
   tokens?: number;
   latencyMs?: number;
@@ -34,6 +45,26 @@ const MessageSchema = new Schema<IMessage>(
     content: {
       type: String,
       required: true,
+    },
+    attachments: {
+      type: [
+        {
+          type: { type: String, default: "image" },
+          url: { type: String, required: true },
+          name: { type: String },
+          size: { type: Number },
+          mimeType: { type: String },
+        },
+      ],
+      default: [],
+    },
+    thought: {
+      type: String,
+      default: "",
+    },
+    thoughtDurationSec: {
+      type: Number,
+      default: 0,
     },
     model: {
       type: String,

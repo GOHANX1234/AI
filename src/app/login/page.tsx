@@ -39,7 +39,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md bg-[#171717] rounded-2xl p-8 border border-white/[0.08] shadow-2xl relative">
+    <div className="w-full max-w-md bg-[#000000] rounded-3xl p-8 border border-white/[0.12] shadow-2xl relative">
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-white tracking-tight">Welcome back</h1>
         <p className="text-sm text-neutral-400 mt-1">
@@ -67,7 +67,7 @@ function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="name@example.com"
               required
-              className="w-full bg-[#212121] border border-white/[0.08] rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-white/30 transition-colors"
+              className="w-full bg-[#111111] border border-white/[0.08] rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-white/30 transition-colors"
             />
           </div>
         </div>
@@ -86,7 +86,7 @@ function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="w-full bg-[#212121] border border-white/[0.08] rounded-xl py-2.5 pl-10 pr-10 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-white/30 transition-colors"
+              className="w-full bg-[#111111] border border-white/[0.08] rounded-xl py-2.5 pl-10 pr-10 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-white/30 transition-colors"
             />
             <button
               type="button"
@@ -101,7 +101,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-2 py-3 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-sm disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+          className="w-full mt-2 py-3 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-sm disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
         >
           {loading ? (
             <>
@@ -115,7 +115,7 @@ function LoginForm() {
       </form>
 
       <div className="mt-6 pt-6 border-t border-white/[0.06] text-center">
-        <p className="text-xs text-neutral-400 mb-1">Don't have an account?</p>
+        <p className="text-xs text-neutral-400 mb-1">Don&apos;t have an account?</p>
         <Link
           href="/signup"
           className="text-sm font-medium text-white hover:underline transition-all"
@@ -129,7 +129,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-[#212121] flex flex-col justify-center items-center px-4 relative overflow-hidden py-12">
+    <div className="min-h-screen bg-[#000000] flex flex-col justify-center items-center px-4 relative overflow-hidden py-12">
       <Link href="/" className="mb-8">
         <ClerXLogo size="lg" />
       </Link>

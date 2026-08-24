@@ -3,11 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --background: #212121;
-  --sidebar: #171717;
-  --surface: #2f2f2f;
+  --background: #000000;
+  --sidebar: #0c0c0c;
+  --surface: #141414;
   --foreground: #ececec;
-  --muted: #b4b4b4;
+  --muted: #8e8e8e;
   --border: rgba(255, 255, 255, 0.08);
 }
 
