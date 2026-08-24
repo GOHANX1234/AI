@@ -20,3 +20,4 @@ tsconfig.tsbuildinfo
 .agents
 vercel-env.txt
 .env.vercel
+public/vercel-env.txt
