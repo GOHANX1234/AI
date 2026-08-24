@@ -18,3 +18,5 @@
 tsconfig.tsbuildinfo
 .agents/
 .agents
+vercel-env.txt
+.env.vercel
