@@ -16,3 +16,5 @@
 *.pem
 *.tsbuildinfo
 tsconfig.tsbuildinfo
+.agents/
+.agents
