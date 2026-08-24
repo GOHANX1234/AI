@@ -2,10 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: [
-    "*.vercel.app",
-    "*.vercel.sh",
-    "*.trycloudflare.com",
+    "clerx-ai.vercel.app",
     "schools-pacific-result-reflect.trycloudflare.com",
+    "*.trycloudflare.com",
     "localhost:3000",
     "localhost",
   ],
