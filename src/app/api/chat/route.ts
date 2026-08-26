@@ -18,7 +18,17 @@ import {
   getPersonalizedSystemPrompt,
   extractAndSaveMemories,
 } from "@/lib/memory";
+import {
+  checkRateLimitDurable,
+  getClientIp,
+  rateLimitResponse,
+} from "@/lib/rateLimitDb";
 import mongoose from "mongoose";
+
+// Requests per minute allowed on this endpoint. Guests are throttled harder
+// because the endpoint spends OpenRouter quota and requires no credentials.
+const GUEST_RATE_LIMIT = 10;
+const AUTH_RATE_LIMIT = 40;
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -49,6 +59,16 @@ export async function POST(req: NextRequest) {
 
     const user = await getCurrentUser();
     const startTime = Date.now();
+
+    // Throttle before spending any upstream AI quota. Authenticated callers are
+    // keyed by user id so a shared NAT/office IP does not throttle everyone.
+    const limit = user
+      ? await checkRateLimitDurable(`chat:user:${user._id.toString()}`, AUTH_RATE_LIMIT, 60_000)
+      : await checkRateLimitDurable(`chat:ip:${getClientIp(req)}`, GUEST_RATE_LIMIT, 60_000);
+
+    if (!limit.success) {
+      return rateLimitResponse(limit);
+    }
 
     // Enforce authentication for file & document uploads
     if (hasAttachments && !user) {
@@ -520,7 +540,14 @@ async function createSSEStreamResponse({
           )
         );
 
-        // Extract long-term memories and emit memory notification
+        // Send done event immediately so the client stops showing the streaming
+        // state. Memory extraction below costs a full extra completion, so it
+        // must not sit between the last token and `done`.
+        controller.enqueue(encoder.encode(`event: done\ndata: {}\n\n`));
+
+        // Extract long-term memories and emit memory notification. The client
+        // keeps reading until the stream closes, so a `memory` event after
+        // `done` still reaches the toast.
         if (user && cleanUserMessage && cleanUserMessage.length >= 5) {
           try {
             const newMemories = await extractAndSaveMemories(
@@ -542,9 +569,6 @@ async function createSSEStreamResponse({
             console.error("Streaming memory extraction error:", memErr);
           }
         }
-
-        // Send done event
-        controller.enqueue(encoder.encode(`event: done\ndata: {}\n\n`));
       } catch (streamErr: any) {
         console.error("SSE stream processing error:", streamErr);
         controller.enqueue(

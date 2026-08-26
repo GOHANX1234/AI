@@ -1,34 +1,13 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/rateLimit";
 
-export default clerkMiddleware(async (_auth, req) => {
-  const path = req.nextUrl.pathname;
-
-  // Apply server-side IP rate limiting only on sensitive custom API routes
-  if (path.startsWith("/api/keys") || path.startsWith("/api/studio/generate")) {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
-    const rateLimit = checkRateLimit(`api:${ip}`, 60, 60_000); // 60 req/min per IP
-
-    if (!rateLimit.success) {
-      return new NextResponse(
-        JSON.stringify({
-          error: "Too Many Requests",
-          message: `Rate limit exceeded. Please retry in ${rateLimit.resetInSeconds} seconds.`,
-        }),
-        {
-          status: 429,
-          headers: {
-            "Content-Type": "application/json",
-            "Retry-After": String(rateLimit.resetInSeconds),
-          },
-        }
-      );
-    }
-  }
-
-  return NextResponse.next();
-});
+/**
+ * Rate limiting is NOT done here. Each serverless instance gets its own memory,
+ * so an in-process counter cannot enforce a global limit, and the Next.js proxy
+ * is explicitly not intended for database round trips. Sensitive routes call
+ * `checkRateLimitDurable` from `@/lib/rateLimitDb` in their own handlers, where
+ * the Node runtime can reach MongoDB.
+ */
+export default clerkMiddleware();
 
 export const config = {
   matcher: [

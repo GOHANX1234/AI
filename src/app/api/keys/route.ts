@@ -3,9 +3,13 @@ import { getCurrentUser, hashPassword } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
 import ApiKey from "@/lib/models/ApiKey";
 import crypto from "crypto";
+import { checkRateLimitDurable, rateLimitResponse } from "@/lib/rateLimitDb";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+// Key creation involves a bcrypt hash and should never be issued in bulk.
+const KEY_CREATE_RATE_LIMIT = 10;
 
 export async function GET() {
   try {
@@ -35,6 +39,13 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const limit = await checkRateLimitDurable(
+      `keys:create:${user._id.toString()}`,
+      KEY_CREATE_RATE_LIMIT,
+      60_000
+    );
+    if (!limit.success) return rateLimitResponse(limit);
 
     const body = await req.json().catch(() => ({}));
     const { name = "Production API Key" } = body;

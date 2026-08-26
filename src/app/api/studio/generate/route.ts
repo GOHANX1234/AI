@@ -4,14 +4,25 @@ import { createChatCompletion, DEFAULT_MODEL } from "@/lib/openrouter";
 import User from "@/lib/models/User";
 import UsageLog from "@/lib/models/UsageLog";
 import { connectToDatabase } from "@/lib/mongodb";
+import { checkRateLimitDurable, rateLimitResponse } from "@/lib/rateLimitDb";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+// Copilot actions each cost an upstream completion, so keep the ceiling low.
+const STUDIO_RATE_LIMIT = 20;
 
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const limit = await checkRateLimitDurable(
+      `studio:${user._id.toString()}`,
+      STUDIO_RATE_LIMIT,
+      60_000
+    );
+    if (!limit.success) return rateLimitResponse(limit);
 
     const body = await req.json();
     const { action, text, instruction, model = DEFAULT_MODEL } = body;

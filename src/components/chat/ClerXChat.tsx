@@ -962,6 +962,10 @@ export default function ClerXChat({
             } else if (eventType === "error") {
               throw new Error(parsed.error || "Streaming error occurred");
             } else if (eventType === "done") {
+              // Unlock the composer as soon as the server signals done. The
+              // stream stays open a little longer while memory extraction runs
+              // and may still deliver a `memory` event afterwards.
+              setIsStreaming(false);
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === streamingMsgId
@@ -975,6 +979,9 @@ export default function ClerXChat({
                     : m
                 )
               );
+              if (user) {
+                loadConversations();
+              }
             }
           } catch {
             // ignore non-json chunk
