@@ -5,6 +5,9 @@ import Conversation from "@/lib/models/Conversation";
 import Message from "@/lib/models/Message";
 import mongoose from "mongoose";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }

@@ -1,38 +1,41 @@
-import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose";
+import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
 
-const JWT_SECRET = process.env.JWT_SECRET || "";
-const key = new TextEncoder().encode(JWT_SECRET);
-const AUTH_COOKIE_NAME = "clerx_auth_token";
+export default clerkMiddleware(async (_auth, req) => {
+  const path = req.nextUrl.pathname;
 
-export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  // Apply server-side IP rate limiting only on sensitive custom API routes
+  if (path.startsWith("/api/keys") || path.startsWith("/api/studio/generate")) {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
+    const rateLimit = checkRateLimit(`api:${ip}`, 60, 60_000); // 60 req/min per IP
 
-  let isAuthenticated = false;
-
-  if (token) {
-    try {
-      await jwtVerify(token, key);
-      isAuthenticated = true;
-    } catch (err) {
-      isAuthenticated = false;
+    if (!rateLimit.success) {
+      return new NextResponse(
+        JSON.stringify({
+          error: "Too Many Requests",
+          message: `Rate limit exceeded. Please retry in ${rateLimit.resetInSeconds} seconds.`,
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimit.resetInSeconds),
+          },
+        }
+      );
     }
   }
 
-  // Redirect any legacy dashboard routes to root chat
-  if (pathname.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-
-  // Auth routes (redirect to root chat if already logged in)
-  if ((pathname === "/login" || pathname === "/signup") && isAuthenticated) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-
   return NextResponse.next();
-}
+});
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/signup"],
+  matcher: [
+    // Skip Next.js internals and all static files, unless found in search params
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Always run for API routes
+    "/(api|trpc)(.*)",
+    "/__clerk/:path*",
+  ],
 };

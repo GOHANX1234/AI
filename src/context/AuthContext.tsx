@@ -1,10 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useUser, useClerk } from "@clerk/nextjs";
 
 export interface UserProfile {
   id: string;
+  clerkId?: string;
   name: string;
   email: string;
   company?: string;
@@ -17,91 +18,106 @@ export interface UserProfile {
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (data: { name: string; email: string; password: string; company?: string; role?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUserLocal: (partial: Partial<UserProfile>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { user: clerkUser, isLoaded: clerkLoaded, isSignedIn } = useUser();
+  const { signOut } = useClerk();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
-  const refreshUser = async () => {
+  const updateUserLocal = useCallback((partial: Partial<UserProfile>) => {
+    setUser((prev) => (prev ? { ...prev, ...partial } : null));
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    if (!isSignedIn || !clerkUser) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch("/api/auth/me");
+      if (clerkUser.reload) {
+        await clerkUser.reload();
+      }
+
+      const currentAvatar = clerkUser.imageUrl || undefined;
+      const currentName = clerkUser.fullName || clerkUser.firstName || "User";
+      const currentEmail = clerkUser.primaryEmailAddress?.emailAddress || "";
+
+      const res = await fetch("/api/auth/me", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         if (data.authenticated && data.user) {
-          setUser(data.user);
-        } else {
-          setUser(null);
+          setUser({
+            ...data.user,
+            avatar: currentAvatar || data.user.avatar,
+            name: currentName || data.user.name,
+          });
+          return;
         }
-      } else {
-        setUser(null);
       }
+
+      // Fallback directly to latest clerkUser
+      setUser({
+        id: clerkUser.id,
+        clerkId: clerkUser.id,
+        name: currentName,
+        email: currentEmail,
+        avatar: currentAvatar,
+        plan: "Free",
+        tokensUsed: 0,
+      });
     } catch (err) {
-      setUser(null);
+      console.error("refreshUser error:", err);
+      if (clerkUser) {
+        setUser({
+          id: clerkUser.id,
+          clerkId: clerkUser.id,
+          name: clerkUser.fullName || clerkUser.firstName || "User",
+          email: clerkUser.primaryEmailAddress?.emailAddress || "",
+          avatar: clerkUser.imageUrl,
+          plan: "Free",
+          tokensUsed: 0,
+        });
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [isSignedIn, clerkUser]);
 
+  // Keep local user in sync when clerkUser avatar or name changes
   useEffect(() => {
-    refreshUser();
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        return { success: false, error: data.error || "Login failed" };
+    if (clerkLoaded) {
+      if (isSignedIn && clerkUser) {
+        refreshUser();
+      } else {
+        setUser(null);
+        setLoading(false);
       }
-      setUser(data.user);
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || "Network error" };
     }
-  };
-
-  const signup = async (formData: { name: string; email: string; password: string; company?: string; role?: string }) => {
-    try {
-      const res = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        return { success: false, error: data.error || "Signup failed" };
-      }
-      setUser(data.user);
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || "Network error" };
-    }
-  };
+  }, [clerkLoaded, isSignedIn, clerkUser?.id, clerkUser?.imageUrl, clerkUser?.fullName, refreshUser]);
 
   const logout = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch (e) {
-      console.error(e);
-    }
     setUser(null);
-    router.push("/login");
+    try {
+      await signOut();
+    } catch (err) {
+      console.error("Logout signOut error:", err);
+    }
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading: !clerkLoaded || loading, logout, refreshUser, updateUserLocal }}>
       {children}
     </AuthContext.Provider>
   );

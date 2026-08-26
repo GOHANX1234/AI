@@ -4,6 +4,9 @@ import { connectToDatabase } from "@/lib/mongodb";
 import Conversation from "@/lib/models/Conversation";
 import { DEFAULT_SYSTEM_PROMPT } from "@/lib/openrouter";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 // GET all conversations for the user
 export async function GET() {
   try {

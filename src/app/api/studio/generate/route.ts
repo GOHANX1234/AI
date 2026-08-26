@@ -5,6 +5,9 @@ import User from "@/lib/models/User";
 import UsageLog from "@/lib/models/UsageLog";
 import { connectToDatabase } from "@/lib/mongodb";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();

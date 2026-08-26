@@ -1,28 +1,10 @@
+import { auth, currentUser } from "@clerk/nextjs/server";
 import bcrypt from "bcryptjs";
-import { SignJWT, jwtVerify } from "jose";
-import { cookies } from "next/headers";
-import { NextRequest } from "next/server";
 import { connectToDatabase } from "./mongodb";
 import User, { IUser } from "./models/User";
 
-const JWT_SECRET = process.env.JWT_SECRET || "";
-if (!JWT_SECRET && process.env.NODE_ENV === "production") {
-  console.warn("JWT_SECRET is not set. Please set JWT_SECRET in your environment.");
-}
-const key = new TextEncoder().encode(JWT_SECRET);
-
-export const AUTH_COOKIE_NAME = "clerx_auth_token";
-
-export interface TokenPayload {
-  userId: string;
-  email: string;
-  name: string;
-  plan?: string;
-  exp?: number;
-}
-
 /**
- * Hash plain password using bcryptjs
+ * Hash plain password / api key string using bcryptjs
  */
 export async function hashPassword(password: string): Promise<string> {
   const salt = await bcrypt.genSalt(10);
@@ -37,63 +19,76 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 /**
- * Sign a JWT token using jose
- */
-export async function signToken(payload: { userId: string; email: string; name: string; plan?: string }): Promise<string> {
-  return await new SignJWT(payload)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("7d")
-    .sign(key);
-}
-
-/**
- * Verify and decode a JWT token
- */
-export async function verifyToken(token: string): Promise<TokenPayload | null> {
-  try {
-    const { payload } = await jwtVerify(token, key, {
-      algorithms: ["HS256"],
-    });
-    return payload as unknown as TokenPayload;
-  } catch (error) {
-    return null;
-  }
-}
-
-/**
- * Get authenticated user payload from server-side cookies
- */
-export async function getSessionUser(): Promise<TokenPayload | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
-  if (!token) return null;
-  return verifyToken(token);
-}
-
-/**
- * Get full user document from MongoDB for current session
+ * Get full user document from MongoDB for current Clerk session.
+ * Automatically synchronizes or provisions the user record in MongoDB upon first login,
+ * and keeps name & avatar synced with Clerk in real-time.
  */
 export async function getCurrentUser(): Promise<IUser | null> {
-  const session = await getSessionUser();
-  if (!session || !session.userId) return null;
+  try {
+    const { userId: clerkId } = await auth();
+    if (!clerkId) return null;
 
-  await connectToDatabase();
-  const user = await User.findById(session.userId).select("-password");
-  return user;
-}
+    await connectToDatabase();
+    let user = await User.findOne({ clerkId });
+    const clerkUser = await currentUser();
 
-/**
- * Extract token from NextRequest in middleware or route handlers
- */
-export function getTokenFromRequest(req: NextRequest): string | null {
-  const cookieToken = req.cookies.get(AUTH_COOKIE_NAME)?.value;
-  if (cookieToken) return cookieToken;
+    if (!user) {
+      if (!clerkUser) return null;
 
-  const authHeader = req.headers.get("authorization");
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    return authHeader.substring(7);
+      const email =
+        clerkUser.emailAddresses?.find((e) => e.id === clerkUser.primaryEmailAddressId)?.emailAddress ||
+        clerkUser.emailAddresses?.[0]?.emailAddress ||
+        `${clerkId}@clerk.user`;
+
+      const fullName =
+        `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() ||
+        clerkUser.username ||
+        email.split("@")[0] ||
+        "User";
+
+      const avatar = clerkUser.imageUrl || "";
+
+      // Check if user exists by email (e.g. from previous email signup or linked auth)
+      user = await User.findOne({ email });
+      if (user) {
+        user.clerkId = clerkId;
+        user.avatar = avatar;
+        if ((!user.name || user.name === "User") && fullName) user.name = fullName;
+        await user.save();
+      } else {
+        user = await User.create({
+          clerkId,
+          email,
+          name: fullName,
+          avatar,
+          plan: "Free",
+          company: "ClerX Workspace",
+          role: "AI Engineer",
+          tokensUsed: 0,
+        });
+      }
+    } else if (clerkUser) {
+      // Sync latest Clerk avatar and name to MongoDB in real-time
+      let changed = false;
+      if (clerkUser.imageUrl && user.avatar !== clerkUser.imageUrl) {
+        user.avatar = clerkUser.imageUrl;
+        changed = true;
+      }
+      const fullName =
+        `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() ||
+        clerkUser.username;
+      if (fullName && user.name !== fullName) {
+        user.name = fullName;
+        changed = true;
+      }
+      if (changed) {
+        await user.save();
+      }
+    }
+
+    return user;
+  } catch (error) {
+    console.error("getCurrentUser error:", error);
+    return null;
   }
-
-  return null;
 }

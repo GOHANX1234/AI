@@ -6,6 +6,9 @@ import Message from "@/lib/models/Message";
 import DocumentModel from "@/lib/models/Document";
 import UsageLog from "@/lib/models/UsageLog";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const user = await getCurrentUser();

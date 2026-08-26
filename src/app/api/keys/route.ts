@@ -4,6 +4,9 @@ import { connectToDatabase } from "@/lib/mongodb";
 import ApiKey from "@/lib/models/ApiKey";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const user = await getCurrentUser();

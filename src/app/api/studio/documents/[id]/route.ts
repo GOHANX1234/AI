@@ -4,6 +4,9 @@ import { connectToDatabase } from "@/lib/mongodb";
 import DocumentModel from "@/lib/models/Document";
 import mongoose from "mongoose";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }

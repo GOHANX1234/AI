@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { ClerkProvider } from "@clerk/nextjs";
+import { dark } from "@clerk/themes";
 import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
@@ -96,8 +98,18 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
       <body className="bg-[#000000] text-[#ececec] min-h-screen antialiased selection:bg-white selection:text-black">
-        <AuthProvider>{children}</AuthProvider>
+        <ClerkProvider
+          appearance={{
+            theme: dark,
+          }}
+        >
+          <AuthProvider>
+            {children}
+            <div id="clerk-captcha" />
+          </AuthProvider>
+        </ClerkProvider>
       </body>
     </html>
   );
 }
+

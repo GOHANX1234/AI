@@ -2,6 +2,7 @@ import mongoose, { Schema, Model } from "mongoose";
 
 export interface IUser {
   _id: mongoose.Types.ObjectId;
+  clerkId?: string;
   name: string;
   email: string;
   password?: string;
@@ -16,11 +17,18 @@ export interface IUser {
 
 const UserSchema = new Schema<IUser>(
   {
+    clerkId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
     name: {
       type: String,
       required: [true, "Name is required"],
       trim: true,
       maxlength: [60, "Name cannot exceed 60 characters"],
+      default: "User",
     },
     email: {
       type: String,
@@ -32,8 +40,7 @@ const UserSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
-      minlength: [6, "Password must be at least 6 characters"],
+      required: false,
       select: false,
     },
     company: {
@@ -68,3 +75,4 @@ export const User: Model<IUser> =
   mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
 
 export default User;
+

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ClerXLogo from "@/components/ui/ClerXLogo";
+import CustomAuthForm from "@/components/auth/CustomAuthForm";
+import UserAvatar from "@/components/ui/UserAvatar";
 import {
   SquarePen,
   Search,
@@ -21,6 +23,7 @@ import {
   Loader2,
   Menu,
   X,
+  User,
   RefreshCw,
   LogOut,
   ChevronDown,
@@ -249,6 +252,8 @@ export default function ClerXChat({
   const [isUploading, setIsUploading] = useState(false);
   const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState<"upload" | "voice" | null>(null);
+  const [customAuthModal, setCustomAuthModal] = useState<"login" | "signup" | null>(null);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -610,8 +615,12 @@ export default function ClerXChat({
 
   // Load Conversations list
   const loadConversations = useCallback(async () => {
+    if (!user) {
+      setConversations([]);
+      return;
+    }
     try {
-      const res = await fetch("/api/conversations");
+      const res = await fetch("/api/conversations", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setConversations(data.conversations || []);
@@ -620,15 +629,25 @@ export default function ClerXChat({
         if (urlId && data.conversations.some((c: any) => c.id === urlId)) {
           selectConversation(urlId, false, true);
         }
+      } else if (res.status === 401) {
+        setConversations([]);
       }
     } catch (err) {
       console.error("Failed to load conversations:", err);
     }
-  }, [searchParams]);
+  }, [user, searchParams]);
 
   useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+    if (user) {
+      loadConversations();
+    } else {
+      setConversations([]);
+      if (activeConvId) {
+        setActiveConvId(null);
+        setMessages([]);
+      }
+    }
+  }, [user, loadConversations]);
 
   // Handle URL query prompt if passed
   useEffect(() => {
@@ -641,6 +660,25 @@ export default function ClerXChat({
     }
   }, [searchParams]);
 
+  // Close dropdown or modal on click outside / escape
+  useEffect(() => {
+    const handleGlobalClick = () => setShowUserDropdown(false);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowUserDropdown(false);
+        setCustomAuthModal(null);
+      }
+    };
+    if (showUserDropdown || customAuthModal) {
+      window.addEventListener("click", handleGlobalClick);
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("click", handleGlobalClick);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showUserDropdown, customAuthModal]);
+
   // Select a Conversation & Update URL to /c/[id]
   const selectConversation = async (id: string, closeMobileSidebar = true, updateUrl = true) => {
     setActiveConvId(id);
@@ -652,7 +690,7 @@ export default function ClerXChat({
     }
 
     try {
-      const res = await fetch(`/api/conversations/${id}/messages`);
+      const res = await fetch(`/api/conversations/${id}/messages`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         const loadedMessages = (data.messages || []).map((m: MessageItem) => {
@@ -1144,15 +1182,10 @@ export default function ClerXChat({
           {/* New Chat Button */}
           <button
             onClick={handleNewChat}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-[#1c1c1c] text-neutral-200 hover:text-white text-sm font-medium transition-colors group cursor-pointer border border-transparent hover:border-white/[0.06]"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-[#1c1c1c] text-neutral-200 hover:text-white text-sm font-medium transition-colors group cursor-pointer border border-transparent hover:border-white/[0.06]"
           >
-            <div className="flex items-center gap-2.5">
-              <SquarePen className="w-4 h-4 text-neutral-400 group-hover:text-white" />
-              <span>New chat</span>
-            </div>
-            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-[#1c1c1c] text-neutral-400 rounded border border-white/[0.08]">
-              ⌘K
-            </kbd>
+            <SquarePen className="w-4 h-4 text-neutral-400 group-hover:text-white" />
+            <span>New chat</span>
           </button>
 
           {/* Search Bar */}
@@ -1243,31 +1276,39 @@ export default function ClerXChat({
         <div className="p-3 border-t border-white/[0.08] bg-[#000000]">
           {user ? (
             <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[#1c1c1c] transition-colors">
-              <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className="w-8 h-8 rounded-full bg-[#212121] text-neutral-200 border border-white/10 flex items-center justify-center text-xs font-semibold shrink-0">
-                  {user.name ? user.name.substring(0, 2).toUpperCase() : "U"}
-                </div>
+              <button
+                onClick={() => router.push("/profile")}
+                className="flex items-center gap-2.5 overflow-hidden flex-1 text-left cursor-pointer group"
+                title="View Account Profile"
+              >
+                <UserAvatar
+                  src={user.avatar}
+                  name={user.name}
+                  email={user.email}
+                  size="sm"
+                  className="group-hover:border-white/40 transition-colors"
+                />
                 <div className="overflow-hidden">
-                  <div className="text-xs font-medium text-neutral-200 truncate">
+                  <div className="text-xs font-medium text-neutral-200 truncate group-hover:text-white transition-colors">
                     {user.name || "User"}
                   </div>
                   <div className="text-[11px] text-neutral-400 truncate">
                     {user.email}
                   </div>
                 </div>
-              </div>
+              </button>
 
-              <div className="flex items-center gap-0.5">
+              <div className="flex items-center gap-0.5 shrink-0 ml-1">
                 <button
                   onClick={() => setShowSettingsModal(true)}
-                  className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+                  className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                   title="Settings"
                 >
                   <Sliders className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => logout()}
-                  className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+                  className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                   title="Log out"
                 >
                   <LogOut className="w-4 h-4" />
@@ -1281,16 +1322,24 @@ export default function ClerXChat({
                   Get responses tailored to you
                 </div>
                 <div className="text-[11px] text-neutral-400 mt-1 leading-snug">
-                  Log in to save and sync your chat history across devices.
+                  Log in with Google, Apple, or Email to sync your chat history across devices.
                 </div>
               </div>
 
-              <Link
-                href="/login"
-                className="block w-full py-2 text-center rounded-full border border-white/20 hover:bg-white/10 text-white font-medium text-xs transition-colors"
-              >
-                Log in
-              </Link>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setCustomAuthModal("login")}
+                  className="w-full py-2 text-center rounded-full border border-white/20 hover:bg-white/10 text-white font-medium text-xs transition-colors cursor-pointer"
+                >
+                  Log in
+                </button>
+                <button
+                  onClick={() => setCustomAuthModal("signup")}
+                  className="w-full py-2 text-center rounded-full bg-white hover:bg-neutral-200 text-black font-medium text-xs transition-colors cursor-pointer shadow-sm"
+                >
+                  Sign up
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1305,7 +1354,7 @@ export default function ClerXChat({
             {/* Mobile Menu Button */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 md:hidden"
+              className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 md:hidden cursor-pointer"
               title="Open sidebar"
             >
               <Menu className="w-4 h-4" />
@@ -1315,7 +1364,7 @@ export default function ClerXChat({
             {!desktopSidebarVisible && (
               <button
                 onClick={() => setDesktopSidebarVisible(true)}
-                className="hidden md:flex p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="hidden md:flex p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 title="Show sidebar"
               >
                 <PanelLeft className="w-4 h-4" />
@@ -1326,7 +1375,7 @@ export default function ClerXChat({
             <div className="relative">
               <button
                 onClick={() => setShowModelDropdown(!showModelDropdown)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-base font-semibold text-neutral-200 hover:bg-white/5 transition-colors"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-base font-semibold text-neutral-200 hover:bg-white/5 transition-colors cursor-pointer"
               >
                 <span>ClerX</span>
                 <ChevronDown className="w-4 h-4 text-neutral-400" />
@@ -1353,35 +1402,50 @@ export default function ClerXChat({
           <div className="flex items-center gap-2">
             {!user ? (
               <div className="flex items-center gap-2">
-                <Link
-                  href="/login"
-                  className="px-3.5 py-1.5 rounded-full text-xs font-medium text-neutral-200 hover:text-white hover:bg-white/10 transition-colors"
+                <button
+                  onClick={() => setCustomAuthModal("login")}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-medium text-neutral-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 >
                   Log in
-                </Link>
-                <Link
-                  href="/signup"
-                  className="px-3.5 py-1.5 rounded-full bg-white text-black text-xs font-medium hover:bg-neutral-200 transition-colors shadow-sm"
+                </button>
+                <button
+                  onClick={() => setCustomAuthModal("signup")}
+                  className="px-3.5 py-1.5 rounded-full bg-white text-black text-xs font-medium hover:bg-neutral-200 transition-colors shadow-sm cursor-pointer"
                 >
                   Sign up for free
-                </Link>
+                </button>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2 relative">
                 <button
                   onClick={handleNewChat}
-                  className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5 text-xs font-medium"
+                  className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
                   title="New chat"
                 >
                   <SquarePen className="w-4 h-4" />
+                  <span className="hidden sm:inline">New chat</span>
                 </button>
                 <button
                   onClick={handleExportMarkdown}
                   disabled={messages.length === 0}
-                  className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5 text-xs font-medium disabled:opacity-30 disabled:pointer-events-none"
+                  className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5 text-xs font-medium disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                   title="Export chat as Markdown"
                 >
                   <Download className="w-4 h-4" />
+                </button>
+
+                {/* Top Navbar User Avatar - opens Profile Page on click */}
+                <button
+                  onClick={() => router.push("/profile")}
+                  className="rounded-full hover:scale-105 transition-transform cursor-pointer"
+                  title="View Account Profile"
+                >
+                  <UserAvatar
+                    src={user.avatar}
+                    name={user.name}
+                    email={user.email}
+                    size="sm"
+                  />
                 </button>
               </div>
             )}
@@ -2098,6 +2162,35 @@ export default function ClerXChat({
         </div>
       )}
 
+      {/* In-App Custom Auth Modal (Zero Clerk watermark, 100% custom UI) */}
+      {customAuthModal && (
+        <div
+          onClick={() => setCustomAuthModal(null)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#000000] border border-white/[0.12] rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative overflow-hidden"
+          >
+            {/* Background Glow */}
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-white/5 rounded-full blur-3xl pointer-events-none" />
+
+            <button
+              onClick={() => setCustomAuthModal(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors z-20 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <CustomAuthForm
+              initialMode={customAuthModal}
+              onSuccess={() => setCustomAuthModal(null)}
+              isModal={true}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Login Required Modal for Voice & File Upload */}
       {showAuthModal && (
         <div
@@ -2114,7 +2207,7 @@ export default function ClerXChat({
             {/* Close Button */}
             <button
               onClick={() => setShowAuthModal(null)}
-              className="absolute top-4 right-4 p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="absolute top-4 right-4 p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -2137,7 +2230,7 @@ export default function ClerXChat({
               </h3>
               <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed max-w-xs mx-auto">
                 {showAuthModal === "upload"
-                  ? "Sign in or create a free account to upload photos, PDFs, and documents for instant AI analysis."
+                  ? "Sign in with Google, Apple, or Email to upload photos, PDFs, and documents for instant AI analysis."
                   : "Talk directly to ClerX AI with high-accuracy live speech recognition and voice input."}
               </p>
             </div>
@@ -2145,13 +2238,19 @@ export default function ClerXChat({
             {/* Action Buttons */}
             <div className="space-y-2.5 pt-2">
               <button
-                onClick={() => router.push("/login")}
+                onClick={() => {
+                  setShowAuthModal(null);
+                  setCustomAuthModal("login");
+                }}
                 className="w-full py-3 px-4 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-sm transition-all shadow-md active:scale-[0.98] cursor-pointer"
               >
                 Log In
               </button>
               <button
-                onClick={() => router.push("/signup")}
+                onClick={() => {
+                  setShowAuthModal(null);
+                  setCustomAuthModal("signup");
+                }}
                 className="w-full py-3 px-4 rounded-xl bg-[#1c1c1c] hover:bg-[#252525] border border-white/10 text-white font-medium text-sm transition-all active:scale-[0.98] cursor-pointer"
               >
                 Create a Free Account
