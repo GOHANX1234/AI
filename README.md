@@ -44,7 +44,15 @@
 - **Real-Time Telemetry**: Live token counter and latency (ms) recorded per response.
 - **Export & Share**: 1-click Markdown export (`.md`) for any conversation thread.
 
-### 2. 🔐 Enterprise Authentication & Edge Security
+### 2. 🧠 Neural AI Memory & Personalization (ChatGPT-style)
+- **Continuous Cross-Session Memory**: ClerX AI remembers user background, coding preferences, project architecture, and tech stacks across distinct conversation sessions.
+- **Autonomous Memory Extraction**: Background extraction engine analyzes conversation turns and synthesizes new, lasting facts and preferences into MongoDB Atlas without latency overhead.
+- **Real-Time Memory Notification**: Instant floating UI notification (`✦ Memory updated`) when new facts or preferences are saved during chat streaming.
+- **Memory & Personalization Hub (`MemoryModal`)**: Full-featured memory manager allowing users to search, filter by category (`#tech`, `#preference`, `#work`, `#personal`, `#instruction`), edit inline, add custom memories manually, or clear all memories.
+- **Custom Instructions**: Configure persistent instructions for what ClerX AI should know about you and how it should format responses.
+- **Master Memory Toggle**: Complete user control to turn memory extraction on/off at any time.
+
+### 3. 🔐 Enterprise Authentication & Edge Security
 - **Clerk Authentication**: Production-grade identity management with social logins, email/password, session lifecycle management, and `@clerk/themes` dark mode styling.
 - **Custom Auth UI & Profile Manager**: Custom branded login and signup flows (`/login`, `/signup`), dedicated profile settings (`/profile`), and SSO callback handler (`/sso-callback`).
 - **Automatic MongoDB Sync**: On-the-fly provisioning and real-time syncing of Clerk user accounts (name, email, avatar, token usage, plans) directly with MongoDB Atlas.
@@ -80,12 +88,14 @@ ClerX/
     ├── lib/
     │   ├── mongodb.ts          # Cached MongoDB Atlas connection singleton
     │   ├── auth.ts             # Clerk session resolution & MongoDB user synchronizer
+    │   ├── memory.ts           # Long-term AI memory extraction, recall & prompt synthesis
     │   ├── rateLimit.ts        # Server-side sliding window rate limiting
     │   ├── openrouter.ts       # OpenRouter AI gateway client with fallback models
     │   ├── pdfHelper.ts        # Client-side PDF canvas rendering & text extractor
     │   ├── empty-module.js     # Turbopack stub module for node canvas
     │   └── models/
-    │       ├── User.ts         # User schema linked with Clerk ID & profile details
+    │       ├── User.ts         # User schema with memory & custom instruction settings
+    │       ├── Memory.ts       # Persistent user memory & personalization schema
     │       ├── Conversation.ts # Multi-session chat schema
     │       ├── Message.ts      # Multi-turn chat message schema & attachments
     │       ├── Document.ts     # Studio document workspace schema
@@ -99,7 +109,8 @@ ClerX/
     │   │   ├── ClerXLogo.tsx   # Vector ClerX branding component
     │   │   └── UserAvatar.tsx  # Dynamic user avatar component with fallback
     │   └── chat/
-    │       └── ClerXChat.tsx   # Complete multi-session Chat Studio interface
+    │       ├── ClerXChat.tsx   # Complete multi-session Chat Studio interface
+    │       └── MemoryModal.tsx # ChatGPT-style Memory & Personalization Hub
     │
     └── app/
         ├── layout.tsx          # Root HTML layout with ClerkProvider & AuthProvider
@@ -115,7 +126,8 @@ ClerX/
             ├── auth/
             │   ├── sign-in/route.ts     # Custom sign-in ticket generation
             │   └── me/route.ts          # Authenticated Clerk & MongoDB profile lookup
-            ├── chat/route.ts            # AI chat completion & SSE streaming
+            ├── chat/route.ts            # AI chat completion & SSE streaming with memory recall
+            ├── memory/route.ts          # AI Memory & Personalization CRUD endpoints
             ├── conversations/
             │   ├── route.ts             # List & create conversation sessions
             │   └── [id]/
@@ -137,7 +149,11 @@ ClerX/
 | :--- | :--- | :--- | :---: |
 | `GET` | `/api/auth/me` | Retrieve authenticated user profile from Clerk & MongoDB | Yes (Clerk) |
 | `POST` | `/api/auth/sign-in` | Generate short-lived Clerk sign-in ticket for custom auth | No |
-| `POST` | `/api/chat` | Generate direct AI completion / SSE stream | No (Guest/Auth) |
+| `POST` | `/api/chat` | Generate direct AI completion / SSE stream with memory injection | No (Guest/Auth) |
+| `GET` | `/api/memory` | Fetch all remembered facts, memory status & custom instructions | Yes (Clerk) |
+| `POST` | `/api/memory` | Add manual memory or update memory/custom instruction settings | Yes (Clerk) |
+| `PUT` | `/api/memory` | Update a specific memory fact or toggle active state | Yes (Clerk) |
+| `DELETE` | `/api/memory?id=...` | Delete individual memory or clear all (`?all=true`) | Yes (Clerk) |
 | `GET` | `/api/conversations` | Fetch all user chat sessions | Yes (Clerk) |
 | `POST` | `/api/conversations` | Create a new chat session | Yes (Clerk) |
 | `PATCH` | `/api/conversations/:id` | Rename / pin / update a chat session | Yes (Clerk) |

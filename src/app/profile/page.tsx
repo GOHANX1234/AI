@@ -27,7 +27,10 @@ import {
   X,
   ArrowRight,
   Shield,
+  Brain,
+  Sliders,
 } from "lucide-react";
+import MemoryModal from "@/components/chat/MemoryModal";
 
 // High-quality modern avatar presets
 const AVATAR_PRESETS = [
@@ -107,6 +110,7 @@ export default function ProfilePage() {
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetInfo, setResetInfo] = useState<string | null>(null);
   const [resetCooldown, setResetCooldown] = useState(0);
+  const [showMemoryModal, setShowMemoryModal] = useState(false);
 
   // Cooldown timer for profile reset
   useEffect(() => {
@@ -828,6 +832,39 @@ export default function ProfilePage() {
             </p>
           </div>
         )}
+
+        {/* AI Memory & Personalization Card */}
+        <div className="bg-[#0c0c0c] border border-white/[0.08] rounded-3xl p-6 sm:p-8 space-y-4 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                <Brain className="w-5 h-5 text-sky-400" />
+                <span>AI Memory & Personalization</span>
+                <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                  Active
+                </span>
+              </h2>
+              <p className="text-xs text-neutral-400 leading-relaxed max-w-xl">
+                ClerX AI learns your coding preferences, project details, and guidelines across sessions. Manage what the AI remembers or customize response instructions.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowMemoryModal(true)}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white hover:bg-neutral-200 text-black text-xs font-semibold transition-all cursor-pointer shadow-md shrink-0 self-start sm:self-auto"
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Manage Memory</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Memory & Personalization Hub Modal */}
+        <MemoryModal
+          isOpen={showMemoryModal}
+          onClose={() => setShowMemoryModal(false)}
+        />
 
         {/* IN-PROFILE FORGOT PASSWORD MODAL */}
         {showResetModal && (

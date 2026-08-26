@@ -11,6 +11,12 @@ export interface IUser {
   plan: "Free" | "Pro" | "Enterprise";
   tokensUsed: number;
   avatar?: string;
+  memoryEnabled?: boolean;
+  customInstructions?: {
+    enabled?: boolean;
+    whatToKnow?: string;
+    howToRespond?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,6 +70,26 @@ const UserSchema = new Schema<IUser>(
     avatar: {
       type: String,
       default: "",
+    },
+    memoryEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    customInstructions: {
+      enabled: {
+        type: Boolean,
+        default: true,
+      },
+      whatToKnow: {
+        type: String,
+        default: "",
+        maxlength: 1500,
+      },
+      howToRespond: {
+        type: String,
+        default: "",
+        maxlength: 1500,
+      },
     },
   },
   {

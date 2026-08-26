@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import ClerXLogo from "@/components/ui/ClerXLogo";
 import CustomAuthForm from "@/components/auth/CustomAuthForm";
 import UserAvatar from "@/components/ui/UserAvatar";
+import MemoryModal from "@/components/chat/MemoryModal";
 import {
   SquarePen,
   Search,
@@ -254,6 +255,9 @@ export default function ClerXChat({
   const [showAuthModal, setShowAuthModal] = useState<"upload" | "voice" | null>(null);
   const [customAuthModal, setCustomAuthModal] = useState<"login" | "signup" | null>(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showMemoryModal, setShowMemoryModal] = useState(false);
+  const [recentMemoryUpdate, setRecentMemoryUpdate] = useState<string | null>(null);
+  const [showMemoryToast, setShowMemoryToast] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -949,6 +953,12 @@ export default function ClerXChat({
                     : m
                 )
               );
+            } else if (eventType === "memory") {
+              if (Array.isArray(parsed.memories) && parsed.memories.length > 0) {
+                setRecentMemoryUpdate(parsed.memories[0].content);
+                setShowMemoryToast(true);
+                setTimeout(() => setShowMemoryToast(false), 7000);
+              }
             } else if (eventType === "error") {
               throw new Error(parsed.error || "Streaming error occurred");
             } else if (eventType === "done") {
@@ -1426,6 +1436,14 @@ export default function ClerXChat({
                   <span className="hidden sm:inline">New chat</span>
                 </button>
                 <button
+                  onClick={() => setShowMemoryModal(true)}
+                  className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+                  title="Personalization & Memory"
+                >
+                  <Brain className="w-4 h-4 text-sky-400" />
+                  <span className="hidden md:inline text-neutral-300">Memory</span>
+                </button>
+                <button
                   onClick={handleExportMarkdown}
                   disabled={messages.length === 0}
                   className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5 text-xs font-medium disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
@@ -1451,6 +1469,39 @@ export default function ClerXChat({
             )}
           </div>
         </header>
+
+        {/* Floating ChatGPT-style "Memory updated" Toast */}
+        {showMemoryToast && recentMemoryUpdate && (
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-40 animate-in fade-in slide-in-from-top-3 duration-200">
+            <div className="px-4 py-2 rounded-full bg-[#1c1c1c]/95 border border-white/15 text-white shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs">
+              <div className="flex items-center gap-1.5 text-sky-400 font-medium shrink-0">
+                <Brain className="w-3.5 h-3.5" />
+                <span>Memory updated:</span>
+              </div>
+              <span className="text-neutral-300 max-w-[220px] sm:max-w-xs truncate font-normal">
+                &quot;{recentMemoryUpdate}&quot;
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMemoryToast(false);
+                  setShowMemoryModal(true);
+                }}
+                className="text-white hover:underline text-[11px] font-semibold pl-1 cursor-pointer shrink-0"
+              >
+                Manage
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowMemoryToast(false)}
+                className="text-neutral-500 hover:text-neutral-300 p-0.5 cursor-pointer shrink-0"
+                title="Dismiss"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Message Feed */}
         <div
@@ -2093,6 +2144,23 @@ export default function ClerXChat({
                   <span className="text-neutral-200">{conversations.length} saved</span>
                 </div>
               </div>
+
+              {user && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSettingsModal(false);
+                    setShowMemoryModal(true);
+                  }}
+                  className="w-full p-3 rounded-xl bg-[#161616] hover:bg-[#1e1e1e] border border-white/10 text-xs font-semibold text-white flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 text-sky-400">
+                    <Brain className="w-4 h-4" />
+                    <span className="text-neutral-200">Manage Memory & Personalization</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-neutral-500" />
+                </button>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
@@ -2263,6 +2331,12 @@ export default function ClerXChat({
           </div>
         </div>
       )}
+
+      {/* Memory & Personalization Hub Modal */}
+      <MemoryModal
+        isOpen={showMemoryModal}
+        onClose={() => setShowMemoryModal(false)}
+      />
 
     </div>
   );

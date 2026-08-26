@@ -14,6 +14,10 @@ import {
   NEMOTRON_OMNI_MODEL,
   DEFAULT_SYSTEM_PROMPT,
 } from "@/lib/openrouter";
+import {
+  getPersonalizedSystemPrompt,
+  extractAndSaveMemories,
+} from "@/lib/memory";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -166,8 +170,13 @@ export async function POST(req: NextRequest) {
       .sort({ createdAt: 1 })
       .limit(14);
 
+    const { systemPrompt: personalizedSystemPrompt } = await getPersonalizedSystemPrompt(
+      user._id,
+      conv.systemPrompt || systemPrompt || DEFAULT_SYSTEM_PROMPT
+    );
+
     const openRouterMessages: ChatMessage[] = [
-      { role: "system", content: conv.systemPrompt || systemPrompt || DEFAULT_SYSTEM_PROMPT },
+      { role: "system", content: personalizedSystemPrompt },
     ];
 
     for (const pm of previousMessages) {
@@ -249,6 +258,11 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Asynchronously extract and remember any new facts/preferences
+      extractAndSaveMemories(user._id, cleanMessage, completion.content, conv._id).catch((err) =>
+        console.error("Background memory extraction error:", err)
+      );
+
       return NextResponse.json({
         conversationId: conv._id.toString(),
         message: {
@@ -274,6 +288,7 @@ export async function POST(req: NextRequest) {
       user,
       conv,
       userMsgDoc,
+      cleanUserMessage: cleanMessage,
     });
   } catch (error: any) {
     console.error("Chat API error:", error);
@@ -297,6 +312,7 @@ async function createSSEStreamResponse({
   user,
   conv,
   userMsgDoc,
+  cleanUserMessage,
 }: {
   messages: ChatMessage[];
   model?: string;
@@ -305,6 +321,7 @@ async function createSSEStreamResponse({
   user: any;
   conv?: any;
   userMsgDoc?: any;
+  cleanUserMessage?: string;
 }) {
   const upstreamResponse = await getOpenRouterStreamResponse(messages, { model, temperature });
   const upstreamReader = upstreamResponse.body?.getReader();
@@ -502,6 +519,29 @@ async function createSSEStreamResponse({
             })}\n\n`
           )
         );
+
+        // Extract long-term memories and emit memory notification
+        if (user && cleanUserMessage && cleanUserMessage.length >= 5) {
+          try {
+            const newMemories = await extractAndSaveMemories(
+              user._id,
+              cleanUserMessage,
+              fullContent,
+              conv?._id
+            );
+            if (newMemories && newMemories.length > 0) {
+              controller.enqueue(
+                encoder.encode(
+                  `event: memory\ndata: ${JSON.stringify({
+                    memories: newMemories,
+                  })}\n\n`
+                )
+              );
+            }
+          } catch (memErr) {
+            console.error("Streaming memory extraction error:", memErr);
+          }
+        }
 
         // Send done event
         controller.enqueue(encoder.encode(`event: done\ndata: {}\n\n`));
